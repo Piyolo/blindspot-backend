@@ -16,7 +16,8 @@ from .storage import (
     init_with_admin, create_account, get_account_by_name, get_user_by_email,
     get_emergency_contact, set_emergency_contact
 )
-
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 # ------------ App & CORS ------------
 IS_PROD = os.getenv("ENV") == "prod"
 app = FastAPI(
@@ -38,6 +39,9 @@ app.add_middleware(
 # Seed an admin with empty password hash (optional)
 init_with_admin("admin", "")
 
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse(url="/docs")
 # ------------ Health ------------
 @app.get("/health")
 def health():
@@ -170,3 +174,4 @@ async def stt(
         return out
     except Exception as e:
         raise HTTPException(500, f"STT failed: {e}")
+
