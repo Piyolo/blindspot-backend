@@ -15,6 +15,26 @@ from .storage import (
     get_emergency_contact, set_emergency_contact
 )
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+DATABASE_URL = os.getenv("mysql+pymysql://root:XnvkXwkokSHuNBUZIyYfoOPCjiIWFeFe@mysql.railway.internal:3306/railway?ssl=true")
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=int(os.getenv("POOL_SIZE", "5")),
+    pool_recycle=int(os.getenv("POOL_RECYCLE", "280")),
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 # ------------ App & CORS ------------
 app = FastAPI(
     title="BlindSpot API",
@@ -124,3 +144,4 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
