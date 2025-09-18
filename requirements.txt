@@ -8,3 +8,5 @@ numpy==1.26.4
 tensorflow==2.15.0
 SQLAlchemy>=2.0
 pymysql>=1.1
+cryptography>=42.0.0
+
