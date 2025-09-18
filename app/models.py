@@ -8,6 +8,5 @@ class Account(Base):
     fld_Name = Column(String(100), unique=True, nullable=False)          # username
     fld_Password = Column(String(255), nullable=False)                   # hashed
     fld_ContactNumber = Column(String(30), nullable=True)
-    fld_AvatarImg = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
