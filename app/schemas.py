@@ -7,13 +7,11 @@ class AccountIn(BaseModel):
     name: str
     password: str
     contact_number: str | None = None
-    avatar_img: str | None = None
 
 class AccountOut(BaseModel):
     id: int
     name: str
     contact_number: str | None
-    avatar_img: str | None
     
 class Box(BaseModel):
     x: float; y: float; w: float; h: float
@@ -28,4 +26,5 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
