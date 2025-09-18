@@ -57,15 +57,15 @@ def health():
 # ------------ DATABASE ------------
 @app.post("/accounts", response_model=schemas.AccountOut)
 def create_acc(body: schemas.AccountIn, db: Session = Depends(get_db)):
-    acc = crud.create_account(db, body.name, body.password, body.contact_number, body.avatar_img)
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber, "avatar_img": acc.fld_AvatarImg}
+    acc = crud.create_account(db, body.name, body.password, body.contact_number)
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
 
 @app.get("/accounts/{name}", response_model=schemas.AccountOut | None)
 def fetch_acc(name: str, db: Session = Depends(get_db)):
     acc = crud.get_account_by_name(db, name)
     if not acc:
         return None
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber, "avatar_img": acc.fld_AvatarImg}
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
 
 # ------------ Auth (OPTIONAL) ------------
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
@@ -146,6 +146,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
