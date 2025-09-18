@@ -2,27 +2,26 @@
 import os, base64, io
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from PIL import Image
-from fastapi import Response
-from pydantic import BaseModel
-from fastapi import UploadFile, File, HTTPException
-from pydantic import BaseModel
+
 from .detector_ssd import get_detector
+
+# Optional auth/contacts (kept behind a flag; safe to leave OFF)
 from .auth import hash_pw, verify_pw, make_token, require_user
 from .storage import (
     init_with_admin, create_account, get_account_by_name, get_user_by_email,
     get_emergency_contact, set_emergency_contact
 )
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+
 # ------------ App & CORS ------------
-IS_PROD = os.getenv("ENV") == "prod"
 app = FastAPI(
-    title="BlindSpot API (no DB)",
-    docs_url=None if IS_PROD else "/docs",
-    redoc_url=None if IS_PROD else "/redoc",
-    openapi_url=None if IS_PROD else "/openapi.json",
+    title="BlindSpot API",
+    # keep docs on so your '/' redirect works in prod
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 CORS_ALLOW = os.getenv("CORS_ORIGINS", "*")
@@ -34,12 +33,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Seed an admin with empty password hash (optional)
+# Seed an admin with empty password hash (optional for your in-memory storage)
 init_with_admin("admin", "")
 
 @app.get("/", include_in_schema=False)
 def home():
     return RedirectResponse(url="/docs")
+
 # ------------ Health ------------
 @app.get("/health")
 def health():
@@ -93,7 +93,7 @@ if ENABLE_AUTH:
         set_emergency_contact(user.id, req.contact_number)
         return {"contact_number": req.contact_number}
 
-# ------------ Detection (public or secure—your choice) ------------
+# ------------ Detection ------------
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
 class Box(BaseModel):
