@@ -17,6 +17,10 @@ from .storage import (
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from .db import Base, engine, get_db
+from . import models, crud, schemas
 
 DATABASE_URL = os.getenv("mysql+pymysql://root:XnvkXwkokSHuNBUZIyYfoOPCjiIWFeFe@mysql.railway.internal:3306/railway?ssl=true")
 
@@ -56,14 +60,33 @@ app.add_middleware(
 # Seed an admin with empty password hash (optional for your in-memory storage)
 init_with_admin("admin", "")
 
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
+
+
 @app.get("/", include_in_schema=False)
 def home():
     return RedirectResponse(url="/docs")
+
 
 # ------------ Health ------------
 @app.get("/health")
 def health():
     return {"ok": True}
+
+# ------------ DATABASE ------------
+@app.post("/accounts", response_model=schemas.AccountOut)
+def create_acc(body: schemas.AccountIn, db: Session = Depends(get_db)):
+    acc = crud.create_account(db, body.name, body.password, body.contact_number, body.avatar_img)
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber, "avatar_img": acc.fld_AvatarImg}
+
+@app.get("/accounts/{name}", response_model=schemas.AccountOut | None)
+def fetch_acc(name: str, db: Session = Depends(get_db)):
+    acc = crud.get_account_by_name(db, name)
+    if not acc:
+        return None
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber, "avatar_img": acc.fld_AvatarImg}
 
 # ------------ Auth (OPTIONAL) ------------
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
@@ -144,4 +167,5 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
