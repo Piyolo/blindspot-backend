@@ -6,10 +6,8 @@ from pydantic import BaseModel
 from PIL import Image
 from fastapi import Response
 from pydantic import BaseModel
-from .tts import synthesize_mp3
 from fastapi import UploadFile, File, HTTPException
 from pydantic import BaseModel
-from .stt_whisper import transcribe_whisper
 from .detector_ssd import get_detector
 from .auth import hash_pw, verify_pw, make_token, require_user
 from .storage import (
@@ -126,52 +124,3 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
-
-# ---------- TTS ----------
-class TtsReq(BaseModel):
-    text: str
-    lang: str = "en"
-    slow: bool = False
-
-@app.post("/tts", summary="Text to Speech (MP3)")
-def tts(req: TtsReq):
-    audio = synthesize_mp3(req.text, lang=req.lang, slow=req.slow)
-    return Response(content=audio, media_type="audio/mpeg")
-
-# ---------- STT ----------
-class SttParams(BaseModel):
-    language: str | None = None   # e.g., "en", "fil" (Tagalog), None = auto
-    translate: bool = False       # True = translate to English
-    vad: bool = True              # Voice activity detection
-    beam_size: int = 5
-    best_of: int = 5
-
-@app.post("/stt")
-async def stt(
-    file: UploadFile = File(...),
-    language: str | None = None,
-    translate: bool = False,
-    vad: bool = True,
-    beam_size: int = 5,
-    best_of: int = 5,
-):
-    """
-    Speech → Text (faster-whisper). Accepts mp3/wav/m4a/ogg/webm/...
-    """
-    raw = await file.read()
-    if not raw:
-        raise HTTPException(400, "Empty audio")
-    try:
-        out = transcribe_whisper(
-            raw,
-            filename_hint=file.filename or "audio.wav",
-            language=language,
-            translate=translate,
-            vad=vad,
-            beam_size=beam_size,
-            best_of=best_of,
-        )
-        return out
-    except Exception as e:
-        raise HTTPException(500, f"STT failed: {e}")
-
