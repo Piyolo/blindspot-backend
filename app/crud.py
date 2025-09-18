@@ -2,12 +2,11 @@ from sqlalchemy.orm import Session
 from . import models
 from .auth import hash_pw, verify_pw  # reuse yours
 
-def create_account(db: Session, name: str, password: str, contact_number: str | None, avatar_img: str | None):
+def create_account(db: Session, name: str, password: str, contact_number: str | None):
     acc = models.Account(
         fld_Name=name,
         fld_Password=hash_pw(password),
         fld_ContactNumber=contact_number,
-        fld_AvatarImg=avatar_img,
     )
     db.add(acc)
     db.commit()
