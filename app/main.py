@@ -84,34 +84,61 @@ class AuthRes(BaseModel):
     name: str
 
 if ENABLE_AUTH:
-    @app.post("/auth/signup", response_model=schemas.AuthRes)
-    def signup(bode: schemas.SignupIn, db: Session = Depends(get_db)):
-        if crud.get_account_by_name(db, body.name):
-            raise HTTPException(409, "Username already exists")
-        user = crud.create_account(db, body.name, body.password, body.contact_number)
+    # --- AUTH ROUTES (correctly indented) ---
+
+@app.post("/auth/signup", response_model=schemas.AuthRes)
+def signup(body: schemas.SignupIn, db: Session = Depends(get_db)):
+    # check for existing user
+    existing = crud.get_account_by_name(db, body.name)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+
+    # create user
+    acc = crud.create_account(db, body.name, body.password, body.contact_number)
+
+    # issue token
     token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
+
+    # shape matches Android's AccountDto (no avatar)
     return {
         "token": token,
-        "user": {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber},
+        "user": {
+            "id": acc.fld_ID,
+            "name": acc.fld_Name,
+            "contact_number": acc.fld_ContactNumber,
+        },
     }
 
-    @app.post("/auth/login", response_model=schemas.AuthRes)
-    def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
+
+@app.post("/auth/login", response_model=schemas.AuthRes)
+def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
     user = crud.get_account_by_name(db, body.name)
-        if not acc or not verify_pw(body.password, acc.fld_Password):
-            raise HTTPException(401, "Invalid credentials")
-    token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
+    if not user or not verify_pw(body.password, user.fld_Password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = make_token({"uid": user.fld_ID, "name": user.fld_Name})
     return {
         "token": token,
-        "user": {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber},
+        "user": {
+            "id": user.fld_ID,
+            "name": user.fld_Name,
+            "contact_number": user.fld_ContactNumber,
+        },
     }
-    @app.get("/me", response_model=schemas.AccountOut)
-    def me(user=Depends(require_user), db: Session = Depends(get_db)):
-    # require_user should decode the Bearer token and give you user data; else
-    user = crud.get_account_by_name(db, user["name"])
+
+
+@app.get("/me", response_model=schemas.AccountOut)
+def me(current=Depends(require_user), db: Session = Depends(get_db)):
+    # require_user should decode your JWT and give at least `name`
+    acc = crud.get_account_by_name(db, current["name"])
     if not acc:
-        raise HTTPException(404, "User not found")
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": acc.fld_ID,
+        "name": acc.fld_Name,
+        "contact_number": acc.fld_ContactNumber,
+    }
+
 # ------------ Contacts (OPTIONAL; requires auth) ------------
 class ContactReq(BaseModel):
     contact_number: str | None
@@ -160,6 +187,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
