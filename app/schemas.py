@@ -36,13 +36,6 @@ class LoginIn(BaseModel):
     
 #-----------------------------------------
 
-class AuthRes(BaseModel):
-    token: str
-    user: UserOut
-
-
-#-----------------------------------------
-
 class UserOut(BaseModel):
     id: int
     name: str
@@ -50,6 +43,11 @@ class UserOut(BaseModel):
 
     class Config:
         orm_mode = True  # allows returning SQLAlchemy model objects directly
+class AuthRes(BaseModel):
+    token: str
+    user: UserOut
+
+
 
 #-----------------------------------------
 class Box(BaseModel):
@@ -65,6 +63,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
