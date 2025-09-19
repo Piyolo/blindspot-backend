@@ -88,7 +88,7 @@ if ENABLE_AUTH:
     def signup(bode: schemas.SignupIn, db: Session = Depends(get_db)):
         if crud.get_account_by_name(db, body.name):
             raise HTTPException(409, "Username already exists")
-        acc = crud.create_account(db, body.name, body.password, body.contact_number)
+        user = crud.create_account(db, body.name, body.password, body.contact_number)
     token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
     return {
         "token": token,
@@ -97,7 +97,7 @@ if ENABLE_AUTH:
 
     @app.post("/auth/login", response_model=schemas.AuthRes)
     def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
-    acc = crud.get_account_by_name(db, body.name)
+    user = crud.get_account_by_name(db, body.name)
         if not acc or not verify_pw(body.password, acc.fld_Password):
             raise HTTPException(401, "Invalid credentials")
     token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
@@ -108,7 +108,7 @@ if ENABLE_AUTH:
     @app.get("/me", response_model=schemas.AccountOut)
     def me(user=Depends(require_user), db: Session = Depends(get_db)):
     # require_user should decode the Bearer token and give you user data; else
-    acc = crud.get_account_by_name(db, user["name"])
+    user = crud.get_account_by_name(db, user["name"])
     if not acc:
         raise HTTPException(404, "User not found")
     return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
@@ -160,6 +160,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
