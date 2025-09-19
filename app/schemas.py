@@ -36,6 +36,10 @@ class AuthRes(BaseModel):
     token: str
     user: UserOut
 
+class AuthReq(BaseModel):
+    name: str
+    password: str
+
 #-----------------------------------------
 
 class UserOut(BaseModel):
@@ -60,6 +64,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
