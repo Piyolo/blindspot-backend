@@ -93,7 +93,7 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="Account already exists")
 
-    hashed = auth.hash_password(body.password)
+    hashed = auth.hash_pw(body.password)
     account: Account = crud.create_account(
         db,
         name=body.name,
@@ -174,6 +174,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
