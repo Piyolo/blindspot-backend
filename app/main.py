@@ -9,7 +9,7 @@ from PIL import Image
 from .detector_ssd import get_detector
 
 # Optional auth/contacts (kept behind a flag; safe to leave OFF)
-from .auth import hash_pw, verify_pw, make_token, require_user
+from .auth import hash_pw, verify_pw, make_token, require_user, create_token
 from .storage import (
     init_with_admin, create_account, get_account_by_name, get_user_by_email,
     get_emergency_contact, set_emergency_contact
@@ -17,7 +17,7 @@ from .storage import (
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from .db import Base, engine, get_db
-from . import models, crud, schemas
+from . import models, crud, schemas, auth
 from .models import Account
 
 # ------------ App & CORS ------------
@@ -174,6 +174,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
