@@ -108,7 +108,7 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
 @app.post("/auth/login", response_model=schemas.AuthRes)
 def login(body: schemas.AuthReq, db: Session = Depends(get_db)):
     account = crud.get_account_by_name(db, body.name)
-    if not account or not auth.verify_password(body.password, account.hashed_password):
+    if not account or not auth.verify_pw(body.password, account.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = auth.create_token(account.id)
@@ -174,6 +174,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
