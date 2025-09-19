@@ -93,26 +93,38 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="Account already exists")
 
-    hashed = auth.hash_pw(body.password)
-    account: Account = crud.create_account(
+    acc: Account = crud.create_account(
         db,
         name=body.name,
-        hashed_password=hashed,
+        password=body.password,
         contact_number=body.contact_number,
     )
 
-    token = auth.create_token(account.id)   # or whatever you use to mint JWTs
-    return schemas.AuthRes(token=token, user=account)  # thanks to orm_mode
-
+    token = auth.make_token(acc.fld_ID)
+    return {
+        "token": token,
+        "user": {
+            "id": acc.fld_ID,
+            "name": acc.fld_Name,
+            "contact_number": acc.fld_ContactNumber,
+        },
+    }
 
 @app.post("/auth/login", response_model=schemas.AuthRes)
-def login(body: schemas.AuthReq, db: Session = Depends(get_db)):
-    account = crud.get_account_by_name(db, body.name)
-    if not account or not auth.verify_pw(body.password, account.hashed_password):
+def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
+    acc: Account | None = crud.get_account_by_name(db, body.name)
+    if not acc or not auth.verify_pw(body.password, acc.fld_Password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = auth.create_token(account.id)
-    return schemas.AuthRes(token=token, user=account)
+    token = auth.make_token(acc.fld_ID)
+    return {
+        "token": token,
+        "user": {
+            "id": acc.fld_ID,
+            "name": acc.fld_Name,
+            "contact_number": acc.fld_ContactNumber,
+        },
+    }
 
 
 @app.get("/me", response_model=schemas.AccountOut)
@@ -174,6 +186,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
