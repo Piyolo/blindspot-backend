@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 from fastapi import Depends
 from .db import Base, engine, get_db
 from . import models, crud, schemas
+from .models import Account
+
 # ------------ App & CORS ------------
 app = FastAPI(
     title="BlindSpot API",
@@ -86,44 +88,31 @@ class AuthRes(BaseModel):
    # --- AUTH ROUTES ---
 
 @app.post("/auth/signup", response_model=schemas.AuthRes)
-def signup(body: schemas.SignupIn, db: Session = Depends(get_db)):
-    # check duplicate
+def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
     existing = crud.get_account_by_name(db, body.name)
     if existing:
-        raise HTTPException(status_code=409, detail="Username already exists")
+        raise HTTPException(status_code=409, detail="Account already exists")
 
-    # create user
-    acc = crud.create_account(db, body.name, body.password, body.contact_number)
+    hashed = auth.hash_password(body.password)
+    account: Account = crud.create_account(
+        db,
+        name=body.name,
+        hashed_password=hashed,
+        contact_number=body.contact_number,
+    )
 
-    # issue token
-    token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
-
-    return {
-        "token": token,
-        "user": {
-            "id": acc.fld_ID,
-            "name": acc.fld_Name,
-            "contact_number": acc.fld_ContactNumber,
-        },
-    }
+    token = auth.create_token(account.id)   # or whatever you use to mint JWTs
+    return schemas.AuthRes(token=token, user=account)  # thanks to orm_mode
 
 
 @app.post("/auth/login", response_model=schemas.AuthRes)
-def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
-    user = crud.get_account_by_name(db, body.name)
-    if not user or not verify_pw(body.password, user.fld_Password):
+def login(body: schemas.AuthReq, db: Session = Depends(get_db)):
+    account = crud.get_account_by_name(db, body.name)
+    if not account or not auth.verify_password(body.password, account.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = make_token({"uid": user.fld_ID, "name": user.fld_Name})
-
-    return {
-        "token": token,
-        "user": {
-            "id": user.fld_ID,
-            "name": user.fld_Name,
-            "contact_number": user.fld_ContactNumber,
-        },
-    }
+    token = auth.create_token(account.id)
+    return schemas.AuthRes(token=token, user=account)
 
 
 @app.get("/me", response_model=schemas.AccountOut)
@@ -185,6 +174,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
