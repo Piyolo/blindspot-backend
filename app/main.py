@@ -1,6 +1,6 @@
 # app/main.py
 import os, base64, io
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -84,20 +84,34 @@ class AuthRes(BaseModel):
     name: str
 
 if ENABLE_AUTH:
-    @app.post("/auth/signup", response_model=AuthRes)
-    def signup(req: SignupReq):
-        if get_account_by_name(req.name):
-            raise HTTPException(409, "username already exists")
-        user = create_account(req.name, hash_pw(req.password))
-        return {"token": make_token(user.id), "user_id": user.id, "name": user.name}
+    @app.post("/auth/signup", response_model=schemas.AuthRes)
+    def signup(bode: schemas.SignupIn, db: Session = Depends(get_db)):
+        if crud.get_account_by_name(db, body.name):
+            raise HTTPException(409, "Username already exists")
+        acc = crud.create_account(db, body.name, body.password, body.contact_number)
+    token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
+    return {
+        "token": token,
+        "user": {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber},
+    }
 
-    @app.post("/auth/login", response_model=AuthRes)
-    def login(req: LoginReq):
-        user = get_user_by_email(req.name) or get_account_by_name(req.name)
-        if not user or not verify_pw(req.password, user.password_hash):
-            raise HTTPException(401, "invalid credentials")
-        return {"token": make_token(user.id), "user_id": user.id, "name": user.name}
-
+    @app.post("/auth/login", response_model=schemas.AuthRes)
+    def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
+    acc = crud.get_account_by_name(db, body.name)
+        if not acc or not verify_pw(body.password, acc.fld_Password):
+            raise HTTPException(401, "Invalid credentials")
+    token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
+    return {
+        "token": token,
+        "user": {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber},
+    }
+    @app.get("/me", response_model=schemas.AccountOut)
+    def me(user=Depends(require_user), db: Session = Depends(get_db)):
+    # require_user should decode the Bearer token and give you user data; else
+    acc = crud.get_account_by_name(db, user["name"])
+    if not acc:
+        raise HTTPException(404, "User not found")
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
 # ------------ Contacts (OPTIONAL; requires auth) ------------
 class ContactReq(BaseModel):
     contact_number: str | None
@@ -146,6 +160,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
