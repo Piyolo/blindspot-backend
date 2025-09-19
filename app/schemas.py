@@ -12,6 +12,12 @@ class AccountOut(BaseModel):
     class Config:
         orm_mode = True
 
+class AccountIn(BaseModel):
+    # Used by your /accounts create route (if you keep it) and by signup
+    name: str
+    password: str
+    contact_number: Optional[str] = None
+    
 class SignupReq(BaseModel):
     name: str
     password: str
@@ -39,6 +45,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
