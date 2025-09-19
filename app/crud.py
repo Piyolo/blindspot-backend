@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from . import models
-from .auth import hash_pw, verify_pw  # reuse yours
+from .auth import hash_pw  # reuse yours
 
 def create_account(db: Session, name: str, password: str, contact_number: str | None):
     acc = models.Account(
