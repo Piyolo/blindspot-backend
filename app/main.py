@@ -83,7 +83,6 @@ class AuthRes(BaseModel):
     user_id: int
     name: str
 
-if ENABLE_AUTH:
    # --- AUTH ROUTES ---
 
 @app.post("/auth/signup", response_model=schemas.AuthRes)
@@ -186,6 +185,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
