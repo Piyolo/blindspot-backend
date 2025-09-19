@@ -84,11 +84,11 @@ class AuthRes(BaseModel):
     name: str
 
 if ENABLE_AUTH:
-    # --- AUTH ROUTES (correctly indented) ---
+   # --- AUTH ROUTES ---
 
 @app.post("/auth/signup", response_model=schemas.AuthRes)
 def signup(body: schemas.SignupIn, db: Session = Depends(get_db)):
-    # check for existing user
+    # check duplicate
     existing = crud.get_account_by_name(db, body.name)
     if existing:
         raise HTTPException(status_code=409, detail="Username already exists")
@@ -99,7 +99,6 @@ def signup(body: schemas.SignupIn, db: Session = Depends(get_db)):
     # issue token
     token = make_token({"uid": acc.fld_ID, "name": acc.fld_Name})
 
-    # shape matches Android's AccountDto (no avatar)
     return {
         "token": token,
         "user": {
@@ -117,6 +116,7 @@ def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = make_token({"uid": user.fld_ID, "name": user.fld_Name})
+
     return {
         "token": token,
         "user": {
@@ -129,7 +129,6 @@ def login(body: schemas.LoginIn, db: Session = Depends(get_db)):
 
 @app.get("/me", response_model=schemas.AccountOut)
 def me(current=Depends(require_user), db: Session = Depends(get_db)):
-    # require_user should decode your JWT and give at least `name`
     acc = crud.get_account_by_name(db, current["name"])
     if not acc:
         raise HTTPException(status_code=404, detail="User not found")
@@ -187,6 +186,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
