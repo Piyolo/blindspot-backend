@@ -1,6 +1,6 @@
 # app/main.py
 import os, base64, io
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -8,22 +8,16 @@ from PIL import Image
 
 from .detector_ssd import get_detector
 
-# Optional auth/contacts (kept behind a flag; safe to leave OFF)
-from .auth import hash_pw, verify_pw, make_token, require_user
-from .storage import (
-    init_with_admin, create_account, get_account_by_name, get_user_by_email,
-    get_emergency_contact, set_emergency_contact
-)
+# DB + models + auth helpers
 from sqlalchemy.orm import Session
-from fastapi import Depends
 from .db import Base, engine, get_db
 from . import models, crud, schemas, auth
 from .models import Account
+from .auth import require_user  # validates Bearer token for /me
 
 # ------------ App & CORS ------------
 app = FastAPI(
     title="BlindSpot API",
-    # keep docs on so your '/' redirect works in prod
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -38,55 +32,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Seed an admin with empty password hash (optional for your in-memory storage)
-init_with_admin("admin", "")
-
 @app.on_event("startup")
 def on_startup():
+    # keep DB metadata creation
     Base.metadata.create_all(bind=engine)
-
 
 @app.get("/", include_in_schema=False)
 def home():
     return RedirectResponse(url="/docs")
-
 
 # ------------ Health ------------
 @app.get("/health")
 def health():
     return {"ok": True}
 
-# ------------ DATABASE ------------
-@app.post("/accounts", response_model=schemas.AccountOut)
-def create_acc(body: schemas.AccountIn, db: Session = Depends(get_db)):
-    acc = crud.create_account(db, body.name, body.password, body.contact_number)
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
-
-@app.get("/accounts/{name}", response_model=schemas.AccountOut | None)
-def fetch_acc(name: str, db: Session = Depends(get_db)):
-    acc = crud.get_account_by_name(db, name)
-    if not acc:
-        return None
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
-
-# ------------ Auth (OPTIONAL) ------------
-ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() == "true"
-
-class SignupReq(BaseModel):
-    name: str
-    password: str
-
-class LoginReq(BaseModel):
-    name: str
-    password: str
-
-class AuthRes(BaseModel):
-    token: str
-    user_id: int
-    name: str
-
-   # --- AUTH ROUTES ---
-
+# =========================================================
+# Auth Routes (kept)
+# =========================================================
 @app.post("/auth/signup", response_model=schemas.AuthRes)
 def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
     existing = crud.get_account_by_name(db, body.name)
@@ -126,9 +88,9 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
         },
     }
 
-
 @app.get("/me", response_model=schemas.AccountOut)
 def me(current=Depends(require_user), db: Session = Depends(get_db)):
+    # current comes from JWT; look up full record
     acc = crud.get_account_by_name(db, current["name"])
     if not acc:
         raise HTTPException(status_code=404, detail="User not found")
@@ -138,24 +100,9 @@ def me(current=Depends(require_user), db: Session = Depends(get_db)):
         "contact_number": acc.fld_ContactNumber,
     }
 
-# ------------ Contacts (OPTIONAL; requires auth) ------------
-class ContactReq(BaseModel):
-    contact_number: str | None
-
-class ContactRes(BaseModel):
-    contact_number: str | None
-
-if ENABLE_AUTH:
-    @app.get("/contacts/me", response_model=ContactRes)
-    def get_me(user=Depends(require_user)):
-        return {"contact_number": get_emergency_contact(user.id)}
-
-    @app.put("/contacts/me", response_model=ContactRes)
-    def set_me(req: ContactReq, user=Depends(require_user)):
-        set_emergency_contact(user.id, req.contact_number)
-        return {"contact_number": req.contact_number}
-
-# ------------ Detection ------------
+# =========================================================
+# Detection Routes (kept)
+# =========================================================
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
 class Box(BaseModel):
@@ -186,18 +133,3 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
