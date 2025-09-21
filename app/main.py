@@ -1,6 +1,6 @@
 # app/main.py
-import os, base64, io
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+import os, base64, io, jwt
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -88,12 +88,54 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
         },
     }
 
-@app.get("/me", response_model=schemas.AccountOut)
-def me(current=Depends(require_user), db: Session = Depends(get_db)):
-    # current comes from JWT; look up full record
-    acc = crud.get_account_by_name(db, current["name"])
+def _current_account(db: Session, authorization: str = Header(...)) -> Account:
+    # Expect "Bearer <token>"
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        payload = jwt.decode(token, auth.JWT_SECRET, algorithms=[auth.JWT_ALG])
+        uid = int(payload["sub"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    acc = db.query(Account).filter(Account.fld_ID == uid).first()
     if not acc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=401, detail="User not found")
+    return acc
+
+@app.get("/me", response_model=schemas.AccountOut)
+def me(authorization: str = Header(...), db: Session = Depends(get_db)):
+    acc = _current_account(db, authorization)
+    return {
+        "id": acc.fld_ID,
+        "name": acc.fld_Name,
+        "contact_number": acc.fld_ContactNumber,
+    }
+
+class UpdateMeReq(BaseModel):
+    name: str | None = None
+    contact_number: str | None = None
+
+@app.put("/me", response_model=schemas.AccountOut)
+def update_me(body: UpdateMeReq, authorization: str = Header(...), db: Session = Depends(get_db)):
+    acc = _current_account(db, authorization)
+
+    # If changing name, ensure unique
+    if body.name is not None and body.name != acc.fld_Name:
+        exists = db.query(Account).filter(Account.fld_Name == body.name).first()
+        if exists:
+            raise HTTPException(status_code=409, detail="Username already taken")
+        acc.fld_Name = body.name
+
+    # If changing contact number (may be None to clear)
+    if body.contact_number is not None:
+        acc.fld_ContactNumber = body.contact_number
+
+    db.add(acc)
+    db.commit()
+    db.refresh(acc)
+
     return {
         "id": acc.fld_ID,
         "name": acc.fld_Name,
@@ -133,3 +175,4 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
