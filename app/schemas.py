@@ -31,6 +31,11 @@ class AuthRes(BaseModel):
     token: str
     user: AccountOut
 
+
+class UpdateMeReq(BaseModel):
+    name: Optional[str] = None
+    contact_number: Optional[str] = None
+
 #-----------------------------------------
 class Box(BaseModel):
     x: float; y: float; w: float; h: float
@@ -45,6 +50,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
