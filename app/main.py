@@ -1,6 +1,7 @@
 # app/main.py
 import os, base64, io
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from . import models, crud, schemas, auth
 from .models import Account
 from .schemas import UpdateMeReq
 
+bearer_scheme = HTTPBearer(auto_error=True)
 # ------------ App & CORS ------------
 app = FastAPI(
     title="BlindSpot API",
@@ -90,12 +92,16 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
 # =========================================================
 # /me helpers & routes
 # =========================================================
-from fastapi import Header
 
-def _current_account(db: Session, authorization: str = Header(..., alias="Authorization")) -> Account:
-    if not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1].strip()
+def _current_account(
+    creds: HTTPAuthorizationCredentials = Security(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Account:
+    """
+    Reads the Authorization header via HTTP Bearer security,
+    decodes the JWT, and loads the Account from MySQL.
+    """
+    token = creds.credentials  # Swagger will send only the token; scheme is 'Bearer'
     try:
         payload = jwt.decode(token, auth.JWT_SECRET, algorithms=[auth.JWT_ALG])
         uid = int(payload["sub"])
@@ -108,23 +114,22 @@ def _current_account(db: Session, authorization: str = Header(..., alias="Author
     return acc
 
 @app.get("/me", response_model=schemas.AccountOut)
-def me(authorization: str = Header(..., alias="Authorization"), db: Session = Depends(get_db)):
-    acc = _current_account(db, authorization)
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
+def me(acc: Account = Depends(_current_account)):
+    return {
+        "id": acc.fld_ID,
+        "name": acc.fld_Name,
+        "contact_number": acc.fld_ContactNumber,
+    }
 
 @app.put("/me", response_model=schemas.AccountOut)
-def update_me(
-    body: UpdateMeReq,
-    authorization: str = Header(..., alias="Authorization"),
-    db: Session = Depends(get_db),
-):
-    acc = _current_account(db, authorization)
-
+def update_me(body: UpdateMeReq, acc: Account = Depends(_current_account), db: Session = Depends(get_db)):
+    # Update name (ensure unique if changed)
     if body.name is not None and body.name != acc.fld_Name:
         if db.query(Account).filter(Account.fld_Name == body.name).first():
             raise HTTPException(status_code=409, detail="Username already taken")
         acc.fld_Name = body.name
 
+    # Update contact number (None allowed to clear)
     if body.contact_number is not None:
         acc.fld_ContactNumber = body.contact_number
 
@@ -137,7 +142,6 @@ def update_me(
         "name": acc.fld_Name,
         "contact_number": acc.fld_ContactNumber,
     }
-
 
 # =========================================================
 # Detection Routes
@@ -172,5 +176,6 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
