@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
 from . import models, crud, schemas, auth
 from .models import Account
+from .schemas import UpdateMeReq
 
 # ------------ App & CORS ------------
 app = FastAPI(
@@ -118,14 +119,24 @@ def update_me(
     db: Session = Depends(get_db),
 ):
     acc = _current_account(db, authorization)
+
     if body.name is not None and body.name != acc.fld_Name:
         if db.query(Account).filter(Account.fld_Name == body.name).first():
             raise HTTPException(status_code=409, detail="Username already taken")
         acc.fld_Name = body.name
+
     if body.contact_number is not None:
         acc.fld_ContactNumber = body.contact_number
-    db.add(acc); db.commit(); db.refresh(acc)
-    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
+
+    db.add(acc)
+    db.commit()
+    db.refresh(acc)
+
+    return {
+        "id": acc.fld_ID,
+        "name": acc.fld_Name,
+        "contact_number": acc.fld_ContactNumber,
+    }
 
 
 # =========================================================
@@ -161,4 +172,5 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
