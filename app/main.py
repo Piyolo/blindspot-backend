@@ -89,8 +89,9 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
 # =========================================================
 # /me helpers & routes
 # =========================================================
-def _current_account(db: Session, authorization: str = Header(...)) -> Account:
-    """Extracts user id from Bearer token and loads Account from DB."""
+from fastapi import Header
+
+def _current_account(db: Session, authorization: str = Header(..., alias="Authorization")) -> Account:
     if not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
@@ -106,41 +107,26 @@ def _current_account(db: Session, authorization: str = Header(...)) -> Account:
     return acc
 
 @app.get("/me", response_model=schemas.AccountOut)
-def me(authorization: str = Header(...), db: Session = Depends(get_db)):
+def me(authorization: str = Header(..., alias="Authorization"), db: Session = Depends(get_db)):
     acc = _current_account(db, authorization)
-    return {
-        "id": acc.fld_ID,
-        "name": acc.fld_Name,
-        "contact_number": acc.fld_ContactNumber,
-    }
-
-class UpdateMeReq(BaseModel):
-    name: str | None = None
-    contact_number: str | None = None
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
 
 @app.put("/me", response_model=schemas.AccountOut)
-def update_me(body: UpdateMeReq, authorization: str = Header(...), db: Session = Depends(get_db)):
+def update_me(
+    body: UpdateMeReq,
+    authorization: str = Header(..., alias="Authorization"),
+    db: Session = Depends(get_db),
+):
     acc = _current_account(db, authorization)
-
-    # Update name (ensure unique if changed)
     if body.name is not None and body.name != acc.fld_Name:
         if db.query(Account).filter(Account.fld_Name == body.name).first():
             raise HTTPException(status_code=409, detail="Username already taken")
         acc.fld_Name = body.name
-
-    # Update contact number (can be None to clear)
     if body.contact_number is not None:
         acc.fld_ContactNumber = body.contact_number
+    db.add(acc); db.commit(); db.refresh(acc)
+    return {"id": acc.fld_ID, "name": acc.fld_Name, "contact_number": acc.fld_ContactNumber}
 
-    db.add(acc)
-    db.commit()
-    db.refresh(acc)
-
-    return {
-        "id": acc.fld_ID,
-        "name": acc.fld_Name,
-        "contact_number": acc.fld_ContactNumber,
-    }
 
 # =========================================================
 # Detection Routes
@@ -175,3 +161,4 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
