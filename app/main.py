@@ -18,6 +18,7 @@ from .models import Account
 from .schemas import UpdateMeReq
 
 bearer_scheme = HTTPBearer(auto_error=True)
+bearer = HTTPBearer()
 # ------------ App & CORS ------------
 app = FastAPI(
     title="BlindSpot API",
@@ -88,6 +89,12 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
             "contact_number": acc.fld_ContactNumber,
         },
     }
+
+@app.post("/auth/logout", status_code=204)
+def logout(_: HTTPAuthorizationCredentials = Security(bearer)):
+    # Stateless logout: client clears its token; server has nothing to invalidate.
+    # If you later add revocation, do it here.
+    return
 
 # =========================================================
 # /me helpers & routes
@@ -176,6 +183,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
