@@ -8,6 +8,8 @@ class AccountOut(BaseModel):
     id: int
     name: str
     contact_number: Optional[str] = None
+    has_password: bool = True           # NEW
+    password_len: Optional[int] = None  # OPTIONAL: if you really want dynamic bullet count
 
     class Config:
         orm_mode = True
@@ -51,6 +53,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
