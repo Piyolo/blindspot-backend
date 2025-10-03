@@ -35,6 +35,7 @@ class AuthRes(BaseModel):
 class UpdateMeReq(BaseModel):
     name: Optional[str] = None
     contact_number: Optional[str] = None
+    password: Optional[str] = None
 
 #-----------------------------------------
 class Box(BaseModel):
@@ -50,6 +51,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
