@@ -133,7 +133,7 @@ def update_me(
     body: UpdateMeReq, 
     acc: Account = Depends(_current_account), 
     db: Session = Depends(get_db)
-:
+):
     # Update name (ensure unique if changed)
     if body.name is not None and body.name != acc.fld_Name:
         if db.query(Account).filter(Account.fld_Name == body.name).first():
@@ -191,6 +191,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
