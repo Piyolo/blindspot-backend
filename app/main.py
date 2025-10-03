@@ -126,6 +126,8 @@ def me(acc: Account = Depends(_current_account)):
         "id": acc.fld_ID,
         "name": acc.fld_Name,
         "contact_number": acc.fld_ContactNumber,
+        "has_password": True,                # you likely always have one after signup
+        "password_len": acc.fld_PasswordLen  # only if you decide to store it
     }
 
 @app.put("/me", response_model=schemas.AccountOut)
@@ -156,6 +158,9 @@ def update_me(
         "id": acc.fld_ID,
         "name": acc.fld_Name,
         "contact_number": acc.fld_ContactNumber,
+        "has_password": True,                # you likely always have one after signup
+        "password_len": acc.fld_PasswordLen  # only if you decide to store it
+        
     }
 
 # =========================================================
@@ -191,6 +196,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
