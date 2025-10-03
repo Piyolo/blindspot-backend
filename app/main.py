@@ -129,7 +129,11 @@ def me(acc: Account = Depends(_current_account)):
     }
 
 @app.put("/me", response_model=schemas.AccountOut)
-def update_me(body: UpdateMeReq, acc: Account = Depends(_current_account), db: Session = Depends(get_db)):
+def update_me(
+    body: UpdateMeReq, 
+    acc: Account = Depends(_current_account), 
+    db: Session = Depends(get_db)
+:
     # Update name (ensure unique if changed)
     if body.name is not None and body.name != acc.fld_Name:
         if db.query(Account).filter(Account.fld_Name == body.name).first():
@@ -139,6 +143,10 @@ def update_me(body: UpdateMeReq, acc: Account = Depends(_current_account), db: S
     # Update contact number (None allowed to clear)
     if body.contact_number is not None:
         acc.fld_ContactNumber = body.contact_number
+
+    # NEW: Update password (hash it)
+    if body.password is not None and body.password.strip():
+        acc.fld_Password = auth.hash_pw(body.password.strip())
 
     db.add(acc)
     db.commit()
@@ -183,6 +191,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
