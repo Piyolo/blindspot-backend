@@ -1,4 +1,4 @@
-import os, bcrypt, jwt, datetime, uiid
+import os, bcrypt, jwt, datetime, uuid
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .storage import get_account_by_id
@@ -48,4 +48,5 @@ def revoke_token(token: str):
             BLACKLIST.add(jti)
     except Exception:
         pass
+
 
