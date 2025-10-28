@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
 from . import models, crud, schemas, auth
 from .models import Account
-from .schemas import UpdateMeReq
+from .schemas import UpdateMeReq, ReverifyReq, ReverifyRes
+from .auth import verify_pw
 
 bearer_scheme = HTTPBearer(auto_error=True)
 bearer = HTTPBearer()
@@ -95,6 +96,19 @@ def logout(creds: HTTPAuthorizationCredentials = Security(bearer)):
     # Revoke current token (best effort). Client still clears local token.
     auth.revoke_token(creds.credentials)
     return
+
+# =========================================================
+# /auth/reverify – confirm password for sensitive actions
+# =========================================================
+@app.post("/auth/reverify", response_model=ReverifyRes)
+def reverify(
+    body: ReverifyReq,
+    acc: Account = Depends(_current_account)
+):
+    # acc is the current user (JWT already validated by _current_account)
+    if not verify_pw(body.password, acc.fld_Password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    return {"authorized": True}
 
 # =========================================================
 # /me helpers & routes
@@ -196,6 +210,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
