@@ -39,6 +39,13 @@ class UpdateMeReq(BaseModel):
     contact_number: Optional[str] = None
     password: Optional[str] = None
 
+# Reverify
+class ReverifyReq(BaseModel):
+    password: str
+
+class ReverifyRes(BaseModel):
+    authorized: bool
+
 #-----------------------------------------
 class Box(BaseModel):
     x: float; y: float; w: float; h: float
@@ -53,6 +60,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
