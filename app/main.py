@@ -139,6 +139,15 @@ def reverify(
     print("bcrypt.checkpw returned True")
     return {"authorized": True}
 
+@app.get("/me", response_model=schemas.AccountOut)
+def me(acc: Account = Depends(_current_account)):
+    return {
+        "id": acc.fld_ID,
+        "name": acc.fld_Name,
+        "contact_number": acc.fld_ContactNumber,
+        "has_password": True,
+        "password_len": len(acc.fld_Password) if acc.fld_Password else None
+    }
 
 @app.put("/me", response_model=schemas.AccountOut)
 def update_me(
@@ -206,6 +215,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
