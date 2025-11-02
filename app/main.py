@@ -97,18 +97,6 @@ def logout(creds: HTTPAuthorizationCredentials = Security(bearer)):
     auth.revoke_token(creds.credentials)
     return
 
-# =========================================================
-# /auth/reverify – confirm password for sensitive actions
-# =========================================================
-@app.post("/auth/reverify", response_model=ReverifyRes)
-def reverify(
-    body: ReverifyReq,
-    acc: Account = Depends(_current_account)
-):
-    # acc is the current user (JWT already validated by _current_account)
-    if not verify_pw(body.password, acc.fld_Password):
-        raise HTTPException(status_code=401, detail="Invalid password")
-    return {"authorized": True}
 
 # =========================================================
 # /me helpers & routes
@@ -133,6 +121,19 @@ def _current_account(
     if not acc:
         raise HTTPException(status_code=404, detail="User not found")
     return acc
+
+# =========================================================
+# /auth/reverify – confirm password for sensitive actions
+# =========================================================
+@app.post("/auth/reverify", response_model=ReverifyRes)
+def reverify(
+    body: ReverifyReq,
+    acc: Account = Depends(_current_account)
+):
+    # acc is the current user (JWT already validated by _current_account)
+    if not verify_pw(body.password, acc.fld_Password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    return {"authorized": True}
 
 @app.get("/me", response_model=schemas.AccountOut)
 def me(acc: Account = Depends(_current_account)):
@@ -210,6 +211,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
