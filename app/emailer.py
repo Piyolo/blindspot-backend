@@ -2,7 +2,6 @@ import os
 import smtplib
 from email.message import EmailMessage
 
-
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -24,7 +23,6 @@ def send_reset_email(to_email: str, code: str):
         f"PASS={'set' if SMTP_PASS else 'missing'}"
     )
 
-    # fallback: dev mode
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
         print(f"[DEV EMAIL] To: {to_email}\nSubject: {subject}\n\n{body}")
         return
