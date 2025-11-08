@@ -1,8 +1,17 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from . import models
-from .auth import hash_pw  # reuse yours
+from .auth import hash_pw
 
-def create_account(db: Session, name: str, password: str, contact_number: str | None, email: str | None = None):
+
+def create_account(
+    db: Session,
+    name: str,
+    password: str,
+    contact_number: str | None = None,
+    email: str | None = None,
+):
+    """Create a new account."""
     acc = models.Account(
         fld_Name=name,
         fld_Password=hash_pw(password),
@@ -16,12 +25,18 @@ def create_account(db: Session, name: str, password: str, contact_number: str | 
 
 
 def get_account_by_name(db: Session, name: str):
-    return db.query(models.Account).filter(models.Account.fld_Name == name).first()
-
-def get_account_by_email(db: Session, email: str):
-    """Find an account by email (case-insensitive match)."""
+    """Find account by username (case-sensitive)."""
     return (
         db.query(models.Account)
-        .filter(models.Account.fld_Email == email)
+        .filter(models.Account.fld_Name == name)
+        .first()
+    )
+
+
+def get_account_by_email(db: Session, email: str):
+    """Find account by email (case-insensitive)."""
+    return (
+        db.query(models.Account)
+        .filter(func.lower(models.Account.fld_Email) == email.lower())
         .first()
     )
