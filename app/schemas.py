@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 # ---------- Accounts / Auth ----------
@@ -46,6 +46,17 @@ class ReverifyReq(BaseModel):
 class ReverifyRes(BaseModel):
     authorized: bool
 
+class ForgotReq(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class ForgotRes(BaseModel):
+    message: str
+
+class ResetReq(BaseModel):
+    code: str
+    new_password: str
+
 #-----------------------------------------
 class Box(BaseModel):
     x: float; y: float; w: float; h: float
@@ -60,6 +71,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
