@@ -8,6 +8,10 @@ from pydantic import BaseModel
 from PIL import Image
 import jwt  # PyJWT
 
+from datetime import datetime, timedelta
+import secrets
+from .emailer import send_reset_email  # will create this file below
+
 from .detector_ssd import get_detector
 
 # DB + models + auth helpers
@@ -37,9 +41,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from .db import init_db  # import the helper from db.py
+
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    init_db()  # this safely auto-creates missing tables
+
 
 @app.get("/", include_in_schema=False)
 def home():
@@ -139,6 +146,71 @@ def reverify(
     print("bcrypt.checkpw returned True")
     return {"authorized": True}
 
+# =========================================================
+# /auth/forgot – request password reset
+# =========================================================
+@app.post("/auth/forgot", response_model=schemas.ForgotRes)
+def forgot_password(body: schemas.ForgotReq, db: Session = Depends(get_db)):
+    # Try to find user by email or username
+    acc = None
+    if body.email:
+        acc = crud.get_account_by_email(db, body.email)
+    if not acc and body.username:
+        acc = crud.get_account_by_name(db, body.username)
+
+    # Always respond OK to prevent user enumeration
+    if not acc or not acc.fld_Email:
+        return {"message": "If the account exists, a reset link has been sent."}
+
+    # Generate reset code and store it
+    from .models import PasswordReset
+    code = secrets.token_urlsafe(24)[:48]
+    expires = datetime.utcnow() + timedelta(minutes=15)
+
+    reset = PasswordReset(user_id=acc.fld_ID, code=code, expires_at=expires)
+    db.add(reset)
+    db.commit()
+
+    try:
+        send_reset_email(acc.fld_Email, code)
+    except Exception as e:
+        print("[WARN] Email send failed:", e)
+
+    return {"message": "If the account exists, a reset link has been sent."}
+
+
+# =========================================================
+# /auth/reset – complete password reset
+# =========================================================
+@app.post("/auth/reset", response_model=schemas.ForgotRes)
+def reset_password(body: schemas.ResetReq, db: Session = Depends(get_db)):
+    from .models import PasswordReset
+    now = datetime.utcnow()
+
+    reset = (
+        db.query(PasswordReset)
+        .filter(
+            PasswordReset.code == body.code,
+            PasswordReset.used_at.is_(None),
+            PasswordReset.expires_at > now,
+        )
+        .first()
+    )
+
+    if not reset:
+        return {"message": "Password has been reset if the code was valid."}
+
+    acc = db.query(Account).filter(Account.fld_ID == reset.user_id).first()
+    if not acc:
+        return {"message": "Password has been reset if the code was valid."}
+
+    # Update password
+    acc.fld_Password = auth.hash_pw(body.new_password)
+    reset.used_at = now
+    db.commit()
+
+    return {"message": "Password reset successful."}
+
 @app.get("/me", response_model=schemas.AccountOut)
 def me(acc: Account = Depends(_current_account)):
     return {
@@ -215,6 +287,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
