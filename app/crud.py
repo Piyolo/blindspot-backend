@@ -17,3 +17,11 @@ def create_account(db: Session, name: str, password: str, contact_number: str | 
 
 def get_account_by_name(db: Session, name: str):
     return db.query(models.Account).filter(models.Account.fld_Name == name).first()
+
+def get_account_by_email(db: Session, email: str):
+    """Find an account by email (case-insensitive match)."""
+    return (
+        db.query(models.Account)
+        .filter(models.Account.fld_Email == email)
+        .first()
+    )
