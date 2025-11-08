@@ -8,8 +8,14 @@ SMTP_PASS = os.getenv("SMTP_PASS")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@blindspot.local")
 
 def send_reset_email(to_email: str, code: str):
-    subject = "BlindSpot password reset code"
-    body = f"Use this code to reset your BlindSpot password:\n\n{code}\n\nExpires in 15 minutes."
+    subject = "BlindSpot Password Reset Code"
+    body = (
+    f"Your BlindSpot password reset code is:\n\n"
+    f"{code}\n\n"
+    f"This code will expire in 15 minutes. "
+    f"If you didn’t request a password reset, you can ignore this email."
+    )
+
 
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
         # Dev mode: just log to stdout
