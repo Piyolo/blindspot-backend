@@ -24,6 +24,7 @@ class SignupReq(BaseModel):
     name: str
     password: str
     contact_number: Optional[str] = None
+    email: Optional[EmailStr] = None     # NEW
 
 class LoginReq(BaseModel):
     name: str
@@ -71,6 +72,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
