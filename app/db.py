@@ -42,7 +42,11 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_size=int(os.getenv("POOL_SIZE", "5")),
     pool_recycle=int(os.getenv("POOL_RECYCLE", "280")),
-    connect_args={"ssl": {}}  # Railway public proxy requires TLS
+    connect_args={
+        "ssl": {
+            "ssl_ca": "/etc/ssl/certs/ca-certificates.crt"  # system CA bundle
+        }
+    }
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
