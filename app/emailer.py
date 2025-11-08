@@ -18,18 +18,16 @@ def send_reset_email(to_email: str, code: str):
         f"If you didn’t request a password reset, you can ignore this email."
     )
 
-    # Debug print to verify env vars loaded
     print(
         f"[EMAIL DEBUG] HOST={SMTP_HOST}, USER={SMTP_USER}, "
         f"PASS={'set' if SMTP_PASS else 'missing'}"
     )
 
-    # If any required variable is missing → run in dev mode
+    # Dev-mode fallback if any SMTP variable missing
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
         print(f"[DEV EMAIL] To: {to_email}\nSubject: {subject}\n\n{body}")
         return
 
-    # ----- REAL EMAIL SENDING -----
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
             print("[EMAIL] Connecting to Gmail SMTP...")
