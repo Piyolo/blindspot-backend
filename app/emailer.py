@@ -23,6 +23,10 @@ def send_reset_email(to_email: str, code: str):
     msg.set_content(body)
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-        s.starttls()
-        s.login(SMTP_USER, SMTP_PASS)
-        s.send_message(msg)
+    print("[EMAIL] Connecting to Gmail SMTP...")
+    s.starttls()
+    s.login(SMTP_USER, SMTP_PASS)
+    print("[EMAIL] Logged in to Gmail SMTP successfully.")
+    s.send_message(msg)
+    print(f"[EMAIL] Message sent to {to_email}")
+
