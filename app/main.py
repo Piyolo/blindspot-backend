@@ -70,6 +70,7 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
         name=body.name,
         password=body.password,
         contact_number=body.contact_number,
+        email=body.email,  # NEW
     )
 
     token = auth.make_token(acc.fld_ID)
@@ -79,8 +80,10 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
             "id": acc.fld_ID,
             "name": acc.fld_Name,
             "contact_number": acc.fld_ContactNumber,
+            "email": acc.fld_Email,  # optional return
         },
     }
+
 
 @app.post("/auth/login", response_model=schemas.AuthRes)
 def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
@@ -287,6 +290,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
