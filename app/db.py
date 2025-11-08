@@ -11,7 +11,6 @@ def _from_mysql_public_url(pub: str) -> str:
     host = u.hostname or ""
     port = u.port or 3306
     db   = u.path.lstrip("/")
-    # NOTE: no ?ssl=true here; we will enable TLS via connect_args below
     return f"mysql+pymysql://{quote(user)}:{quote(pwd)}@{host}:{port}/{db}"
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -26,7 +25,7 @@ if not DATABASE_URL:
         "Format: mysql+pymysql://USER:PASSWORD@HOST:PORT/DB"
     )
 
-# Mask in logs
+# Mask sensitive info in logs
 masked = DATABASE_URL
 try:
     s = masked.find("://")
@@ -37,13 +36,13 @@ except Exception:
     pass
 print(f"[DB] Using {masked} (TLS via connect_args)")
 
-# The IMPORTANT part: enable TLS for PyMySQL with a dict
+# ---- SQLAlchemy setup ----
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_size=int(os.getenv("POOL_SIZE", "5")),
     pool_recycle=int(os.getenv("POOL_RECYCLE", "280")),
-    connect_args={"ssl": {}}  # <-- enable TLS; Railway public proxy expects TLS
+    connect_args={"ssl": {}}  # Railway public proxy requires TLS
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -55,3 +54,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# ---- Auto-create tables on startup ----
+def init_db():
+    """
+    Automatically create all tables if they don't exist.
+    Safe to call multiple times.
+    """
+    from app import models  # import models to register metadata
+    print("[DB] Checking and creating missing tables if needed...")
+    Base.metadata.create_all(bind=engine)
+    print("[DB] Table creation check complete.")
