@@ -166,9 +166,13 @@ def forgot_password(body: schemas.ForgotReq, db: Session = Depends(get_db)):
         return {"message": "If the account exists, a reset link has been sent."}
 
     # Generate reset code and store it
+    # Generate 6-digit numeric reset code
     from .models import PasswordReset
-    code = secrets.token_urlsafe(24)[:48]
+    import random
+
+    code = f"{random.randint(0, 999999):06d}"  # e.g. "048392"
     expires = datetime.utcnow() + timedelta(minutes=15)
+
 
     reset = PasswordReset(user_id=acc.fld_ID, code=code, expires_at=expires)
     db.add(reset)
@@ -290,6 +294,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
