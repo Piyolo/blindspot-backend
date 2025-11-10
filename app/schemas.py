@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 class AccountOut(BaseModel):
     id: int
-    name: str
+    email: str
     contact_number: Optional[str] = None
     has_password: bool = True           # NEW
     password_len: Optional[int] = None  # OPTIONAL: if you really want dynamic bullet count
@@ -16,18 +16,17 @@ class AccountOut(BaseModel):
 
 class AccountIn(BaseModel):
     # Used by your /accounts create route (if you keep it) and by signup
-    name: str
+    email: str
     password: str
     contact_number: Optional[str] = None
     
 class SignupReq(BaseModel):
-    name: str
+    email: str
     password: str
     contact_number: Optional[str] = None
-    email: Optional[EmailStr] = None     # NEW
 
 class LoginReq(BaseModel):
-    name: str
+    email: str
     password: str
 
 class AuthRes(BaseModel):
@@ -36,7 +35,7 @@ class AuthRes(BaseModel):
 
 
 class UpdateMeReq(BaseModel):
-    name: Optional[str] = None
+    email: Optional[str] = None
     contact_number: Optional[str] = None
     password: Optional[str] = None
 
@@ -48,7 +47,6 @@ class ReverifyRes(BaseModel):
     authorized: bool
 
 class ForgotReq(BaseModel):
-    username: Optional[str] = None
     email: Optional[EmailStr] = None
 
 class ForgotRes(BaseModel):
@@ -72,6 +70,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
