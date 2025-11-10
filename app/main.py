@@ -210,11 +210,12 @@ def reset_password(body: schemas.ResetReq, db: Session = Depends(get_db)):
 def me(acc: Account = Depends(_current_account)):
     return {
         "id": acc.fld_ID,
-        "name": acc.fld_Name,
+        "email": acc.fld_Email,
         "contact_number": acc.fld_ContactNumber,
         "has_password": True,
         "password_len": len(acc.fld_Password) if acc.fld_Password else None
     }
+
 
 @app.put("/me", response_model=schemas.AccountOut)
 def update_me(
@@ -222,17 +223,17 @@ def update_me(
     acc: Account = Depends(_current_account), 
     db: Session = Depends(get_db)
 ):
-    # Update name (ensure unique if changed)
-    if body.name is not None and body.name != acc.fld_Name:
-        if db.query(Account).filter(Account.fld_Name == body.name).first():
-            raise HTTPException(status_code=409, detail="Username already taken")
-        acc.fld_Name = body.name
+    # Update email (ensure unique if changed)
+    if body.email is not None and body.email != acc.fld_Email:
+        if db.query(Account).filter(Account.fld_Email == body.email).first():
+            raise HTTPException(status_code=409, detail="Email already taken")
+        acc.fld_Email = body.email
 
-    # Update contact number (None allowed to clear)
+    # Update contact number
     if body.contact_number is not None:
         acc.fld_ContactNumber = body.contact_number
 
-    # NEW: Update password (hash it)
+    # Update password (hash it)
     if body.password is not None and body.password.strip():
         acc.fld_Password = auth.hash_pw(body.password.strip())
 
@@ -242,12 +243,12 @@ def update_me(
 
     return {
         "id": acc.fld_ID,
-        "name": acc.fld_Name,
+        "email": acc.fld_Email,
         "contact_number": acc.fld_ContactNumber,
-        "has_password": True,                # you likely always have one after signup
+        "has_password": True,
         "password_len": len(acc.fld_Password) if acc.fld_Password else None
-        
     }
+
 
 # =========================================================
 # Detection Routes
@@ -282,6 +283,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
