@@ -62,15 +62,14 @@ def health():
 # =========================================================
 @app.post("/auth/signup", response_model=schemas.AuthRes)
 def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
-    if crud.get_account_by_name(db, body.name):
+    if crud.get_account_by_email(db, body.email):
         raise HTTPException(status_code=409, detail="Account already exists")
 
     acc: Account = crud.create_account(
         db,
-        name=body.name,
+        email=body.email,
         password=body.password,
         contact_number=body.contact_number,
-        email=body.email,  # NEW
     )
 
     token = auth.make_token(acc.fld_ID)
@@ -78,16 +77,15 @@ def signup(body: schemas.SignupReq, db: Session = Depends(get_db)):
         "token": token,
         "user": {
             "id": acc.fld_ID,
-            "name": acc.fld_Name,
+            "email": acc.fld_Email,
             "contact_number": acc.fld_ContactNumber,
-            "email": acc.fld_Email,  # optional return
         },
     }
 
 
 @app.post("/auth/login", response_model=schemas.AuthRes)
 def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
-    acc: Account | None = crud.get_account_by_name(db, body.name)
+    acc: Account | None = crud.get_account_by_email(db, body.email)
     if not acc or not auth.verify_pw(body.password, acc.fld_Password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -96,7 +94,7 @@ def login(body: schemas.LoginReq, db: Session = Depends(get_db)):
         "token": token,
         "user": {
             "id": acc.fld_ID,
-            "name": acc.fld_Name,
+            "email": acc.fld_Email,
             "contact_number": acc.fld_ContactNumber,
         },
     }
@@ -154,26 +152,17 @@ def reverify(
 # =========================================================
 @app.post("/auth/forgot", response_model=schemas.ForgotRes)
 def forgot_password(body: schemas.ForgotReq, db: Session = Depends(get_db)):
-    # Try to find user by email or username
-    acc = None
-    if body.email:
-        acc = crud.get_account_by_email(db, body.email)
-    if not acc and body.username:
-        acc = crud.get_account_by_name(db, body.username)
+    acc = crud.get_account_by_email(db, body.email)
 
-    # Always respond OK to prevent user enumeration
-    if not acc or not acc.fld_Email:
-        return {"message": "If the account exists, a reset link has been sent."}
+    if not acc:
+        return {"message": "If the account exists, a reset code has been sent."}
 
-    # Generate reset code and store it
-    # Generate 6-digit numeric reset code
+    # Generate 6-digit code
     from .models import PasswordReset
     import random
 
-    code = f"{random.randint(0, 999999):06d}"  # e.g. "048392"
+    code = f"{random.randint(0, 999999):06d}"
     expires = datetime.utcnow() + timedelta(minutes=15)
-
-
     reset = PasswordReset(user_id=acc.fld_ID, code=code, expires_at=expires)
     db.add(reset)
     db.commit()
@@ -183,8 +172,7 @@ def forgot_password(body: schemas.ForgotReq, db: Session = Depends(get_db)):
     except Exception as e:
         print("[WARN] Email send failed:", e)
 
-    return {"message": "If the account exists, a reset link has been sent."}
-
+    return {"message": "If the account exists, a reset code has been sent."}
 
 # =========================================================
 # /auth/reset – complete password reset
@@ -294,6 +282,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
