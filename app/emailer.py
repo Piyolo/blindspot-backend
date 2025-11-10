@@ -1,47 +1,44 @@
 import os
-import smtplib
-from email.message import EmailMessage
+import requests
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASS = os.getenv("SMTP_PASS")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@blindspot.local")
-
 
 def send_reset_email(to_email: str, code: str):
     subject = "BlindSpot Password Reset Code"
-    body = (
-        f"Your BlindSpot password reset code is:\n\n"
-        f"{code}\n\n"
-        f"This code expires in 15 minutes. "
-        f"If you didn’t request a password reset, you can ignore this email."
-    )
+    html_content = f"""
+    <div style='font-family:sans-serif;'>
+        <p>Your BlindSpot password reset code is:</p>
+        <h2 style='color:#2b6cb0;'>{code}</h2>
+        <p>This code will expire in 15 minutes.</p>
+        <p>If you didn’t request a password reset, please ignore this message.</p>
+    </div>
+    """
 
-    print(
-        f"[EMAIL DEBUG] HOST={SMTP_HOST}, USER={SMTP_USER}, "
-        f"PASS={'set' if SMTP_PASS else 'missing'}"
-    )
-
-    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
-        print(f"[DEV EMAIL] To: {to_email}\nSubject: {subject}\n\n{body}")
+    if not RESEND_API_KEY:
+        print(f"[DEV EMAIL] To: {to_email}\nSubject: {subject}\n\n{html_content}")
         return
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-            print("[EMAIL] Connecting to Gmail SMTP...")
-            s.starttls()
-            s.login(SMTP_USER, SMTP_PASS)
-            print("[EMAIL] Logged in to Gmail SMTP successfully.")
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": FROM_EMAIL,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            },
+            timeout=10,
+        )
 
-            msg = EmailMessage()
-            msg["From"] = FROM_EMAIL
-            msg["To"] = to_email
-            msg["Subject"] = subject
-            msg.set_content(body)
-
-            s.send_message(msg)
-            print(f"[EMAIL] Message sent to {to_email}")
+        if resp.status_code == 200 or resp.status_code == 201:
+            print(f"[EMAIL] Sent via Resend to {to_email}")
+        else:
+            print(f"[EMAIL ERROR] Resend returned {resp.status_code}: {resp.text}")
 
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
