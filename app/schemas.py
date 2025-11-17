@@ -56,6 +56,16 @@ class ResetReq(BaseModel):
     code: str
     new_password: str
 
+class CheckUserReq(BaseModel):
+    email: str  # this is your username
+
+class CheckUserRes(BaseModel):
+    exists: bool
+
+class SimpleResetReq(BaseModel):
+    email: str      # username
+    new_password: str
+
 #-----------------------------------------
 class Box(BaseModel):
     x: float; y: float; w: float; h: float
@@ -70,6 +80,7 @@ class DetectResponse(BaseModel):
     time_ms: float
     detections: List[Detection]
     image_b64: Optional[str] = None  # data:image/jpeg;base64,...
+
 
 
 
