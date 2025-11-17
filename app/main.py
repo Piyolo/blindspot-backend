@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
 from . import models, crud, schemas, auth
 from .models import Account
-from .schemas import UpdateMeReq, ReverifyReq, ReverifyRes
+from .schemas import UpdateMeReq, ReverifyReq, ReverifyRes, CheckUserReq, CheckUserReq, SimpleResetReq, ForgotRes
 from .auth import verify_pw
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -104,6 +104,14 @@ def logout(creds: HTTPAuthorizationCredentials = Security(bearer)):
     # Revoke current token (best effort). Client still clears local token.
     auth.revoke_token(creds.credentials)
     return
+
+# =========================================================
+# /auth/checkuser – verify that a username/email exists
+# =========================================================
+@app.post("/auth/checkuser", response_model=CheckUserRes)
+def check_user(body: CheckUserReq, db: Session = Depends(get_db)):
+    acc = crud.get_account_by_email(db, body.email)
+    return {"exists": acc is not None}
 
 
 # =========================================================
@@ -206,6 +214,30 @@ def reset_password(body: schemas.ResetReq, db: Session = Depends(get_db)):
 
     return {"message": "Password reset successful."}
 
+# =========================================================
+# /auth/reset_simple – direct reset using username + new password
+# (Less secure than code-based reset; use for your app flow only.)
+# =========================================================
+@app.post("/auth/reset_simple", response_model=ForgotRes)
+def reset_simple(body: SimpleResetReq, db: Session = Depends(get_db)):
+    acc = crud.get_account_by_email(db, body.email)
+    if not acc:
+        # For this flow, we *do* reveal that the user doesn't exist,
+        # because your app will specifically show an error.
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Basic sanity check on password (optional – tweak as you want)
+    new_pw = body.new_password.strip()
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="Password too short")
+
+    acc.fld_Password = auth.hash_pw(new_pw)
+    db.add(acc)
+    db.commit()
+
+    return {"message": "Password reset successful."}
+
+
 @app.get("/me", response_model=schemas.AccountOut)
 def me(acc: Account = Depends(_current_account)):
     return {
@@ -283,6 +315,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
