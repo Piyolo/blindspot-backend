@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
 from . import models, crud, schemas, auth
 from .models import Account
-from .schemas import UpdateMeReq, ReverifyReq, ReverifyRes, CheckUserReq, CheckUserReq, SimpleResetReq, ForgotRes
+from .schemas import UpdateMeReq, ReverifyReq, ReverifyRes, CheckEmailReq, CheckEmailRes, VerifyCodeReq, VerifyCodeRes
 from .auth import verify_pw
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -302,6 +302,7 @@ async def detect(file: UploadFile = File(...), return_image: bool = False):
     if return_image and jpeg_bytes:
         b64 = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
     return DetectResponse(time_ms=elapsed_ms, detections=dets, image_b64=b64)
+
 
 
 
